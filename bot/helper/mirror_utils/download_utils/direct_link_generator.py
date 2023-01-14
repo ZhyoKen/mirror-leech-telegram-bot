@@ -8,6 +8,7 @@ from https://github.com/AvinashReddy3108/PaperplaneExtended . I hereby take no c
 than the modifications. See https://github.com/AvinashReddy3108/PaperplaneExtended/commits/master/userbot/modules/direct_links.py
 for original authorship. """
 
+import math
 from requests import get as rget, head as rhead, post as rpost, Session as rsession
 from os import path
 from http.cookiejar import MozillaCookieJar
@@ -73,6 +74,8 @@ def direct_link_generator(link: str):
         return fembed(link)
     elif any(x in link for x in ['sbembed.com', 'watchsb.com', 'streamsb.net', 'sbplay.org']):
         return sbembed(link)
+    elif 'zippyshare.com' in link:
+        return zs(link)
     else:
         raise DirectDownloadLinkException(f'No Direct link function found for {link}')
 
@@ -398,3 +401,38 @@ def terabox(url) -> str:
     if result['isdir'] != '0':
         raise DirectDownloadLinkException("ERROR: Can't download folder")
     return result['dlink']
+
+def zs(url: str) -> str:
+    base_url = re_search('http.+.zippyshare.com', url)[0]
+    response = rget(url, verify=False)
+    pages = BeautifulSoup(response.text, "lxml")
+    js_script = pages.find("div", style="margin-left: 24px; margin-top: 20px; text-align: center; width: 303px; height: 105px;")
+    if js_script is None:
+        js_script = pages.find("div", style="margin-left: -22px; margin-top: -5px; text-align: center;width: 303px;")
+    js_script = str(js_script)
+
+    try:
+        var_a = re_findall(r"var.a.=.(\d+)", js_script)[0]
+        mtk = int(math.pow(int(var_a),3) + 3)
+        uri1 = re_findall(r"\.href.=.\"/(.*?)/\"", js_script)[0]
+        uri2 = re_findall(r"\+\"/(.*?)\"", js_script)[0]
+    except:
+        try:
+            a, b = re_findall(r"var.[ab].=.(\d+)", js_script)
+            mtk = eval(f"{math.floor(int(a)/3) + int(a) % int(b)}")
+            uri1 = re_findall(r"\.href.=.\"/(.*?)/\"", js_script)[0]
+            uri2 = re_findall(r"\)\+\"/(.*?)\"", js_script)[0]
+        except:
+            try:
+                mtk = eval(re_findall(r"\+\((.*?).\+", js_script)[0] + "+ 11")
+                uri1 = re_findall(r"\.href.=.\"/(.*?)/\"", js_script)[0]
+                uri2 = re_findall(r"\)\+\"/(.*?)\"", js_script)[0]
+            except:
+                try:
+                    mtk = eval(re_findall(r"\+.\((.*?)\).\+", js_script)[0])
+                    uri1 = re_findall(r"\.href.=.\"/(.*?)/\"", js_script)[0]
+                    uri2 = re_findall(r"\+.\"/(.*?)\"", js_script)[0]
+                except Exception as e:
+                    LOGGER.error(e)
+                    raise DirectDownloadLinkException("ERROR: {e}")
+    return f"{base_url}/{uri1}/{int(mtk)}/{uri2}"
